@@ -30,16 +30,22 @@ with other forms of authentication.
       create a /etc/pam.d/pwauth file or edit the /etc/pam.conf file.
 
       If you have a /etc/pam.d directory, you need to create a file named
-      "pwauth" inside it.  To authenticate out of the Unix Shadow file
-      under Redhat 6.x, the /etc/pam.d/pwauth file should look something like
-      this:
+      "pwauth" inside it.  The contents of this file are going to be
+      entirely different for different versions of Unix, since there is
+      no standardization here.  Your best bet is probably to take
+      an existing file in that directory and modify it.  The few
+      ancient examples listed below should be taken more as examples of
+      the general appearance of these things than as useful prototypes.
+
+      To authenticate out of the Unix Shadow file under Redhat 6.x, the
+      /etc/pam.d/pwauth file would look something like this:
 
         auth       required     /lib/security/pam_pwdb.so shadow nullok
         auth       required     /lib/security/pam_nologin.so
         account    required     /lib/security/pam_pwdb.so
 
-      Under OS X 10.4.11, something like the following works (possibly the
-      pam_securityserver line should be removed):
+      Under OS X 10.4.11, the following is reported to work (possibly
+      the pam_securityserver line should be removed):
 
         auth       required     pam_nologin.so
 	auth       sufficient   pam_securityserver.so
@@ -66,15 +72,15 @@ with other forms of authentication.
       that root access isn't required, you should be able to use mod_auth_pam
       instead of mod_auth_external and pwauth and get faster authentications.
 
- (6)  Test the pwauth program.  As root, you can just run the thing, type
+ (7)  Test the pwauth program.  As root, you can just run the thing, type
       in a login (hit return) and a password (hit return), and then check
       the exit code (in csh:  "echo $status"  in sh:  "echo $?").  It should
       be 0 for correct login/password pairs and 1 otherwise.
 
- (7)  Install it in some sensible place (say, /usr/local/libexec/pwauth).
+ (8)  Install it in some sensible place (say, /usr/local/libexec/pwauth).
       Unless you are doing SHADOW_NONE, it should be suid-root, so that
       it has the necessary access to read the shadow file.  That is, the
-      file should be owned by root, and you should do "chmod o+s pwauth" on
+      file should be owned by root, and you should do "chmod u+s pwauth" on
       it.  After you've installed it, it is worth su-ing to whatever account
       your httpd runs under and testing pwauth again from that account.  This
       should confirm that all the uid's and suid-bits are configured correctly.
@@ -149,9 +155,9 @@ with other forms of authentication.
 
 	7 -   Limit on number of bad logins exceeded.
 
-        50 -  pwauth was not run with real uid SERVER_UID.  If you get this
-              error code, you probably have SERVER_UID set incorrectly in
-	      pwauth's config.h file.
+        50 -  pwauth was not run with real uid not in the SERVER_UIDS list.
+	      If you get this error code, you probably have SERVER_UIDS set
+	      incorrectly in pwauth's config.h file.
 
         51 -  pwauth was not given a login & password to check.  The means
               the passing of data from mod_auth_external to pwauth is messed

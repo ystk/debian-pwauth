@@ -50,9 +50,12 @@ main(int argc, char **argv)
     char *login, *passwd;
 #else
     char login[BFSZ+1], passwd[BFSZ+1];
-    char *c, *strchr();
+    char *c;
 #endif
-    int uid,i;
+#ifdef SERVER_UIDS
+    int uid;
+#endif
+    int i;
     int status;
     struct rlimit rlim;
 
@@ -107,7 +110,7 @@ main(int argc, char **argv)
 
     bzero(passwd,strlen(passwd));	/* Erase plain-text from our memory */
 
-#ifdef FAILLOG_JFH
+#if defined(FAILLOG_JFH) || defined(FAILLOG_OPENBSD) || defined(FAILLOG_PWAUTH)
     if (status == STATUS_OK && !check_fails())
 	status= STATUS_MANYFAILS;
 #endif
@@ -123,7 +126,9 @@ main(int argc, char **argv)
 #ifdef UNIX_LASTLOG
 	lastlog();
 #endif
+#ifdef SLEEP_LOCK
 	snooze(0);
+#endif
 	exit(STATUS_OK);
     }
     else
@@ -132,7 +137,9 @@ main(int argc, char **argv)
 #ifdef KEEP_FAILLOG
 	log_failure();
 #endif
+#ifdef SLEEP_LOCK
 	snooze(SLEEP_TIME);
+#endif
 	exit(status);
     }
 }

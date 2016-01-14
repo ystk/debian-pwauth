@@ -71,8 +71,9 @@
  *    ain't Grex, you ain't got it.
  *
  *  - SHADOW_AIX:  This is the AIX shadow password system.  It uses getuserpw()
- *    to fetch passwords and (apparantly) crypt() to encrypt them.  This has
- *    not been tested.  Shadow BSD is also likely to work with AIX.
+ *    to fetch passwords and (apparantly) crypt() to encrypt them. This has
+ *    not been tested.  Shadow BSD is also likely to work with AIX. The
+ *    AUTHENTICATE_AIX option is probably a better option for AIX users.
  *
  *  - SHADOW_HPUX:  This is the HP-UX shadow password system.  It uses
  *    getprpwnam() to fetch passwords and either crypt() or bigcrypt() to
@@ -103,43 +104,56 @@
  *  - LOGIN_CONF_OPENBSD:  Many BSD derived systems use a login.conf file to
  *    configure authentication instead of (or in addition to) PAM.  We
  *    currently support authentication through this mechanism only for
- *    OpenBSD.  Of course, if you login.conf configuration is standard, you
+ *    OpenBSD.  Of course, if your login.conf configuration is standard, you
  *    can just use SHADOW_BSD, but if you want pwauth to respect settings
- *    in login.conf this option can be used instead.  The API used here, is
+ *    in login.conf this option can be used instead. The API used here, is
  *    however, pretty much unique to OpenBSD and will not work on NetBSD or
  *    FreeBSD.
+ *
+ *  - AUTHENTICATE_AIX: AIX has it's own system for configuring authentication
+ *    via various files in the /etc/security directory. This can be used to
+ *    configure special authentication parameters on a per-user basis including
+ *    things like authenticating via kerberos and ldap and such like. We can
+ *    tie into this interface via the authenticate() system call. The module
+ *    to support this was contributed by a user and has not been tested by
+ *    the author.
  */
+
+   /* LOW-LEVEL OPTIONS */
 
 /* #define SHADOW_NONE		/**/
 /* #define SHADOW_BSD		/* FreeBSD, NetBSD, OpenBSD, BSDI, OS X */
 #define SHADOW_SUN		/* Linux, Solaris, IRIX */
 /* #define SHADOW_JFH		/**/
 /* #define SHADOW_MDW		/**/
-/* #define SHADOW_AIX		/* AIX */
+/* #define SHADOW_AIX		/* AIX (see also AUTHENTICATE_AIX) */
 /* #define SHADOW_HPUX		/* HPUX ? */
 
-/* #define PAM			/* Linux PAM or OpenPAM*/
-/* #define PAM_OS_X		/* PAM on OS X */
+   /* HIGH-LEVEL OPTIONS */
+
+/* #define PAM			/* Linux PAM or OpenPAM */
+/* #define PAM_OLD_OS_X		/* PAM on OS X version 10.5 or older */
 /* #define PAM_SOLARIS		/* PAM on Solaris other than 2.6 */
 /* #define PAM_SOLARIS_26	/* PAM on Solaris 2.6 */
 /* #define LOGIN_CONF_OPENBSD	/* login.conf on OpenBSD */
+/* #define AUTHENTICATE_AIX	/* AIX authenticate() function */
 
 
-/* There is also limited support for two failure logging systems (the database
- * that informs you that "there have been 3426 unsuccessful attempts to log
- * into your account since your last login" and which may disable accounts
- * with too many failed logins).
+/* There is also limited support for three failure logging systems (the
+ * database that informs you that "there have been 3426 unsuccessful attempts
+ * to log into your account since your last login" and which may disable
+ * accounts with too many failed logins).
  *
  * If a FAILLOG option is enabled, pwauth will increment the failure count
- * each time there is a failed attempt to login.  Depending on the the
+ * each time there is a failed attempt to login.  Depending on the
  * configuration, it may also deny logins to users who have had too many
  * bad login attempts.
  *
  * Very few Unix systems seem to have faillog files installed, so most
  * installations will not want this option.
  *
- * No faillog option should be used with PAM.  This kind of logging is handled
- * at a lower level with PAM.
+ * No faillog option should be used with PAM or AUTHENTICATE_AIX.  This kind
+ * of logging is handled at a lower level within those systems.
  *
  *  - FAILLOG_JFH:  This is associated with the JFH shadow system.  Some Linux
  *    systems may have this, but most don't seem to.  Failures are logged in
@@ -150,7 +164,7 @@
  *    in faillog.h.
  *
  *  - FAILLOG_OPENBSD:  OpenBSD has a faillog, although it does not disable
- *    logins if any maximum exceeded.  Failure counts are kept in
+ *    logins if any maximum is exceeded.  Failure counts are kept in
  *    /var/log/failedlogin.  There is no system header file that defines the
  *    format of this file, however.  Instead the definition for the file
  *    format is embedded in the "login" source code.  Bad things will happen
@@ -243,11 +257,11 @@
  * way to figure it out is just to do a "ps" and see what most apache processes
  * are running as.)
  *
- * There are two ways to do this.  First, you can compile in the uid numbers
- * that are allowed to run this program, by listing them on the SERVER_UID
- * variable below.  At runtime, pwauth will check that the uid of the user
- * that invoked it is on this list.  So if you have just one uid that should
- * be able to run pwauth, you can say something like:
+ * There are two ways to configure this.  First, you can compile in the uid
+ * numbers that are allowed to run this program, by listing them on the
+ * SERVER_UID variable below.  At runtime, pwauth will check that the uid
+ * of the user that invoked it is on this list.  So if you have just one
+ * uid that should be able to run pwauth, you can say something like:
  *    #define SERVER_UIDS 72
  * If you have several, separate them by commas, like this:
  *    #define SERVER_UIDS 12,343,93
@@ -256,15 +270,16 @@
  *
  * The second option is to create a special group, called something like
  * "pwauth" for user id's that are allowed to run pwauth.  To do this, you
- * should compile pwauth with the SERVER_UIDS variable UNDEFINED.  This will
- * disable the runtime uid check.  Then, when you install the pwauth program,
- * set it's group ownership to the "pwauth" group, and permit it so that only
- * the owner and the group can run it.  Do not permit it to be executable to
+ * should compile pwauth with the SERVER_UIDS variable UNDEFINED (that is
+ * the definition should be removed or commented out).  This will disable the
+ * runtime uid check.  Then, when you install the pwauth program, set it's
+ * group ownership to the "pwauth" group, and permit it so that only the
+ * owner and the group can run it.  Do not permit it to be executable to
  * others.  This has the advantage of not requiring a recompile if you want
  * to change the uid list.
  */
 
-#define SERVER_UIDS 72		/* user "nobody" */
+#define SERVER_UIDS 30		/* user "wwwrun" on the author's system */
 
 
 /* If MIN_UNIX_UID is defined to an integer, logins with uid numbers less than
@@ -282,6 +297,7 @@
 /* If IGNORE_CASE is defined, the login given is checked in two different
  * ways. First without any changes and then with all letters converted to
  * lower case. This is useful for users accustomed to the Windows environment.
+ * This ignores the case of the login name only, not the password.
  */
 
 /* #define IGNORE_CASE             /**/
@@ -289,7 +305,7 @@
 
 /* If DOMAIN_AWARE is enabled, then we we check login names to see if they
  * contain a backslash, and discard anything up to and including the backslash.
- * This is for use in environments where there are windows users accustomed
+ * This is for use in environments where there are Windows users accustomed
  * to login names formed like "domain\username".
  */
 
